@@ -927,3 +927,44 @@ traefik             traefik-66bfd6b9b4-847gf                   1/1     Running  
 
 ```
 
+
+Although cluster seems to be up and running another ConfigMap was changed: kubeadm-config
+
+```bash
+$ k -n kube-system get cm kubeadm-config -o yaml
+apiVersion: v1
+data:
+  ClusterConfiguration: |
+    apiServer: {}
+    apiVersion: kubeadm.k8s.io/v1beta4
+    caCertificateValidityPeriod: 87600h0m0s
+    certificateValidityPeriod: 8760h0m0s
+    certificatesDir: /etc/kubernetes/pki
+    clusterName: kubernetes
+    controlPlaneEndpoint: 192.168.3.20:6443  <<<<<-------------------
+    controllerManager: {}
+    dns: {}
+    encryptionAlgorithm: RSA-2048
+    etcd:
+      local:
+        dataDir: /var/lib/etcd
+    imageRepository: registry.k8s.io
+    kind: ClusterConfiguration
+    kubernetesVersion: v1.33.13
+    networking:
+      dnsDomain: cluster.local
+      podSubnet: 10.2.0.0/16
+      serviceSubnet: 10.96.0.0/12
+    proxy: {}
+    scheduler: {}
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2026-10-01T17:58:24Z"
+  name: kubeadm-config
+  namespace: kube-system
+  resourceVersion: "15953"
+  uid: 3282f72a-6fdc-4ac2-b6af-61bebc71ce0d
+
+
+```
+

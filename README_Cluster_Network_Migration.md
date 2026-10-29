@@ -968,3 +968,294 @@ metadata:
 
 ```
 
+
+After a few days, I decided to do an etcd backup and restore, in order to pratice the procedure.
+
+The strategy is well documented online so no problems were expected. I deciedd to start to check the endpoint health with:
+
+```bash
+sudo etcdctl \
+  --endpoints=https://192.168.4.10:2379 \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key \
+  endpoint health
+```
+
+
+For my surprise I got an answer I did not expected at this stage:
+
+```bash
+{"level":"warn","ts":"2026-10-29T19:24:52.916894Z","logger":"client","caller":"v3/retry_interceptor.go:63","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x40004032c0/192.168.4.10:2379","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: last connection error: connection error: desc = \"transport: authentication handshake failed: tls: failed to verify certificate: x509: certificate is valid for 192.168.3.20, 127.0.0.1, ::1, not 192.168.4.10\""}
+https://192.168.4.10:2379 is unhealthy: failed to commit proposal: context deadline exceeded
+Error: unhealthy cluster
+```
+
+but if I replaced the IP address with `localhost` then it worked
+
+```bash
+ sudo etcdctl   --endpoints=https://localhost:2379   --cacert=/etc/kubernetes/pki/etcd/ca.crt   --cert=/etc/kubernetes/pki/etcd/server.crt   --key=/etc/kubernetes/pki/etcd/server.key   endpoint health
+
+https://localhost:2379 is healthy: successfully committed proposal: took = 36.896007ms
+```
+
+Looking back when I run `sudo kubeadm init phase certs` I only run it for api-server.
+
+I should also have run, for etcd-server and etcd-healthcheck-client. Instead of simply executing the command to renew all certificates, I decided to execute the specific commands related to etcd
+
+```bash
+sudo kubeadm certs renew etcd-healthcheck-client
+``` 
+
+got
+
+```bash
+
+$ sudo kubeadm certs renew etcd-healthcheck-client
+[renew] Reading configuration from the "kubeadm-config" ConfigMap in namespace "kube-system"...
+[renew] Use 'kubeadm init phase upload-config --config your-config-file' to re-upload it.
+
+certificate for liveness probes to healthcheck etcd renewed
+------------------------
+$ sudo etcdctl   --endpoints=https://192.168.4.10:2379   --cacert=/etc/kubernetes/pki/etcd/ca.crt   --cert=/etc/kubernetes/pki/etcd/server.crt   --key=/etc/kubernetes/pki/etcd/server.key   endpoint health
+{"level":"warn","ts":"2026-10-29T19:35:34.661211Z","logger":"client","caller":"v3/retry_interceptor.go:63","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x40002272c0/192.168.4.10:2379","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: last connection error: connection error: desc = \"transport: authentication handshake failed: tls: failed to verify certificate: x509: certificate is valid for 192.168.3.20, 127.0.0.1, ::1, not 192.168.4.10\""}
+https://192.168.4.10:2379 is unhealthy: failed to commit proposal: context deadline exceeded
+Error: unhealthy cluster
+
+```
+
+So the problem did not disapear. Decided to inspect the mentioned ConfigMap
+
+```bash
+$ k -n kube-system get cm
+NAME                                                   DATA   AGE
+coredns                                                1      28d
+extension-apiserver-authentication                     6      28d
+kube-apiserver-legacy-service-account-token-tracking   1      28d
+kube-proxy                                             2      28d
+kube-root-ca.crt                                       1      28d
+kubeadm-config                                         1      28d
+kubelet-config                                         1      28d
+------------------------
+```
+
+Checking for the old control-plane IP it was not found
+
+```bash
+k -n kube-system get cm -o yaml |grep 192.168.3
+```
+
+Inspecting the information of the certificate
+
+```bash
+sudo openssl x509 \
+  -in /etc/kubernetes/pki/etcd/server.crt \
+  -noout -subject -issuer -ext subjectAltName
+```
+
+it still references the IP address (`192.168.3.20` ) of the control-plane when it was on the other network.
+
+```bash
+subject=CN=c2master
+issuer=CN=etcd-ca
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:localhost, IP Address:192.168.3.20, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+```
+
+So basically regeneration of certificates with the correct IP address is required. 
+
+
+Once I did that
+
+```bash
+sudo rm /etc/kubernetes/pki/etcd/server.crt /etc/kubernetes/pki/etcd/server.key
+
+sudo kubeadm certs renew etcd-server
+sudo kubeadm certs renew etcd-healthcheck-client
+```
+
+I checked the certificate details and all good
+
+```bash
+$ sudo openssl x509   -in /etc/kubernetes/pki/etcd/server.crt   -noout -ext subjectAltName
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:localhost, IP Address:192.168.4.10, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+```
+
+and now etcd health check worked
+
+```bash
+ sudo etcdctl   --endpoints=https://192.168.4.10:2379   --cacert=/etc/kubernetes/pki/etcd/ca.crt   --cert=/etc/kubernetes/pki/etcd/server.crt   --key=/etc/kubernetes/pki/etcd/server.key   endpoint health
+https://192.168.4.10:2379 is healthy: successfully committed proposal: took = 27.225193ms
+```
+
+So decided to check all certificates
+
+```bash
+for cert in \
+  /etc/kubernetes/pki/etcd/server.crt \
+  /etc/kubernetes/pki/etcd/peer.crt \
+  /etc/kubernetes/pki/etcd/healthcheck-client.crt \
+  /etc/kubernetes/pki/apiserver-etcd-client.crt
+do
+  if [ -f "$cert" ]; then
+    echo
+    echo "===== $cert ====="
+    openssl x509 -in "$cert" -noout \
+      -subject -issuer -dates -ext subjectAltName
+  fi
+done
+```
+
+
+
+```bash
+$ for cert in \
+  /etc/kubernetes/pki/etcd/server.crt \
+  /etc/kubernetes/pki/etcd/peer.crt \
+  /etc/kubernetes/pki/etcd/healthcheck-client.crt \
+  /etc/kubernetes/pki/apiserver-etcd-client.crt
+do
+  if [ -f "$cert" ]; then
+    echo
+    echo "===== $cert ====="
+    openssl x509 -in "$cert" -noout \
+      -subject -issuer -dates -ext subjectAltName
+  fi
+done
+
+===== /etc/kubernetes/pki/etcd/server.crt =====
+subject=CN=c2master
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:52:18 2026 GMT
+notAfter=Oct 29 19:57:18 2027 GMT
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:localhost, IP Address:192.168.4.10, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+===== /etc/kubernetes/pki/etcd/peer.crt =====
+subject=CN=c2master
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:37:29 2026 GMT
+notAfter=Oct 29 19:42:29 2027 GMT
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:localhost, IP Address:192.168.3.20, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1  <<<-------------------
+
+===== /etc/kubernetes/pki/etcd/healthcheck-client.crt =====
+subject=CN=kube-etcd-healthcheck-client
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:30:20 2026 GMT
+notAfter=Oct 29 19:35:20 2027 GMT
+No extensions in certificate
+
+===== /etc/kubernetes/pki/apiserver-etcd-client.crt =====
+subject=CN=kube-apiserver-etcd-client
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:38:53 2026 GMT
+notAfter=Oct 29 19:43:53 2027 GMT
+No extensions in certificate
+```
+
+So /etc/kubernetes/pki/etcd/peer.crt  also needs update. Deleted old peer.crt and peer.key and executed
+
+```bash
+sudo rm /etc/kubernetes/pki/etcd/peer.crt /etc/kubernetes/pki/etcd/peer.key
+sudo kubeadm certs renew etcd-peer 
+```
+Now all etcd related certs are correct
+
+```bash
+$ for cert in \
+  /etc/kubernetes/pki/etcd/server.crt \
+  /etc/kubernetes/pki/etcd/peer.crt \
+  /etc/kubernetes/pki/etcd/healthcheck-client.crt \
+  /etc/kubernetes/pki/apiserver-etcd-client.crt
+do
+  if [ -f "$cert" ]; then
+    echo
+    echo "===== $cert ====="
+    openssl x509 -in "$cert" -noout \
+      -subject -issuer -dates -ext subjectAltName
+  fi
+done
+
+===== /etc/kubernetes/pki/etcd/server.crt =====
+subject=CN=c2master
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:52:18 2026 GMT
+notAfter=Oct 29 19:57:18 2027 GMT
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:localhost, IP Address:192.168.4.10, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+===== /etc/kubernetes/pki/etcd/peer.crt =====
+subject=CN=c2master
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:37:29 2026 GMT
+notAfter=Oct 29 19:42:29 2027 GMT
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:localhost, IP Address:192.168.4.10, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+===== /etc/kubernetes/pki/etcd/healthcheck-client.crt =====
+subject=CN=kube-etcd-healthcheck-client
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:30:20 2026 GMT
+notAfter=Oct 29 19:35:20 2027 GMT
+No extensions in certificate
+
+===== /etc/kubernetes/pki/apiserver-etcd-client.crt =====
+subject=CN=kube-apiserver-etcd-client
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:38:53 2026 GMT
+notAfter=Oct 29 19:43:53 2027 GMT
+No extensions in certificate
+```
+
+Rechecking all other certificates all seem ok as well.
+
+```bash
+
+===== /etc/kubernetes/pki/apiserver-etcd-client.crt =====
+subject=CN=kube-apiserver-etcd-client
+issuer=CN=etcd-ca
+notBefore=Oct 29 19:38:53 2026 GMT
+notAfter=Oct 29 19:43:53 2027 GMT
+No extensions in certificate
+
+===== /etc/kubernetes/pki/apiserver-kubelet-client.crt =====
+subject=O=kubeadm:cluster-admins, CN=kube-apiserver-kubelet-client
+issuer=CN=kubernetes
+notBefore=Oct 16 20:27:28 2026 GMT
+notAfter=Oct 16 20:32:28 2027 GMT
+No extensions in certificate
+
+===== /etc/kubernetes/pki/apiserver.crt =====
+subject=CN=kube-apiserver
+issuer=CN=kubernetes
+notBefore=Oct 16 20:27:28 2026 GMT
+notAfter=Oct 16 20:32:28 2027 GMT
+X509v3 Subject Alternative Name:
+    DNS:c2master, DNS:kubernetes, DNS:kubernetes.default, DNS:kubernetes.default.svc, DNS:kubernetes.default.svc.cluster.local, IP Address:10.96.0.1, IP Address:192.168.4.10
+
+===== /etc/kubernetes/pki/ca.crt =====
+subject=CN=kubernetes
+issuer=CN=kubernetes
+notBefore=Oct  1 17:52:07 2026 GMT
+notAfter=Sep 28 17:57:07 2036 GMT
+X509v3 Subject Alternative Name:
+    DNS:kubernetes
+
+===== /etc/kubernetes/pki/front-proxy-ca.crt =====
+subject=CN=front-proxy-ca
+issuer=CN=front-proxy-ca
+notBefore=Oct  1 17:52:07 2026 GMT
+notAfter=Sep 28 17:57:07 2036 GMT
+X509v3 Subject Alternative Name:
+    DNS:front-proxy-ca
+
+===== /etc/kubernetes/pki/front-proxy-client.crt =====
+subject=CN=front-proxy-client
+issuer=CN=front-proxy-ca
+notBefore=Oct 16 20:27:28 2026 GMT
+notAfter=Oct 16 20:32:28 2027 GMT
+No extensions in certificate
+```

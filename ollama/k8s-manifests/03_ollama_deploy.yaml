@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: c2worker1
+      initContainers:
+        - name: pull-model
+          image: ollama/ollama:latest
+          command:
+           - /bin/sh
+           - -c
+           - |
+             ollama serve &
+             sleep 5 
+             ollama pull phi3:mini 
+             ollama pull  qwen:0.5b
+             ollama pull  deepseek-coder:1.3b
+             ollama pull  deepseek-r1:1.5b
+          env:
+           - name: OLLAMA_HOST
+             value: '0.0.0.0:11434'
+          volumeMounts:
+          - name: ollama-data
+            mountPath: /root/.ollama            
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          env:
+           - name: OLLAMA_HOST
+             value: '0.0.0.0:11434'
+           - name: OLLAMA_KEEP_ALIVE
+             value: '1h'
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            limits:
+              memory: "6Gi"
+              cpu: 4000m
+            requests:
+              memory: "2Gi"
+              cpu: 250m
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data

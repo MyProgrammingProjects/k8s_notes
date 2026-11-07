@@ -1,0 +1,178 @@
+======================================
+Ollama inference experiment
+======================================
+Test ID : 1794073647-phi3_mini-12434
+Model   : phi3:mini
+Prompt  : Explain Kubernetes architecture.
+
+Kubernetes monitoring started (PID: 12438)
+
+Sending request to Ollama...
+
+======================================
+Generated response
+======================================
+Kubernetes is an open-source container orchestration system that automates the deployment, scaling, and management of containerized applications. It was originally developed by Google and has since become a widely adopted platform for managing containerized workloads.
+
+Kubernetes architecture is based on a master-worker model, where the master node is responsible for managing the cluster, and worker nodes are responsible for running the containers. The master node consists of several components, including the API server, etcd, controller manager, and scheduler.
+
+The API server is the central management entity that exposes the Kubernetes API, which allows
+
+======================================
+Inference metrics
+======================================
+{
+  "model": "phi3:mini",
+  "total_duration_seconds": 144.177896111,
+  "load_duration_seconds": 55.119975631,
+  "prompt_tokens": 15,
+  "prompt_eval_seconds": 4.344099,
+  "output_tokens": 128,
+  "generation_seconds": 84.692076,
+  "output_tokens_per_second": 1.51135744978078
+}
+
+======================================
+Results
+======================================
+Inference CSV : results/inference.csv
+Resources CSV : results/resources-1794073647-phi3_mini-12434.csv
+Test ID       : 1794073647-phi3_mini-12434
+
+Stopping Kubernetes monitoring (PID: 12438)
+Test finished with exit code: 0
+
+
+
+
+======================================
+Ollama inference experiment
+======================================
+Test ID : 1794073793-qwen_0.5b-14048
+Model   : qwen:0.5b
+Prompt  : Explain Kubernetes architecture.
+
+Kubernetes monitoring started (PID: 14052)
+
+Sending request to Ollama...
+
+======================================
+Generated response
+======================================
+Kubernetes is a container orchestration system that allows developers to create, manage, and deploy containerized applications. Kubernetes uses a model of containers that are organized into clusters, and that are managed by a Kubernetes controller. Kubernetes provides a number of features, including automatic scaling, automatic scaling groups, and automatic scaling policies. Kubernetes is widely used in various industries, including cloud computing, data center, and container orchestration.
+
+======================================
+Inference metrics
+======================================
+{
+  "model": "qwen:0.5b",
+  "total_duration_seconds": 22.29858728,
+  "load_duration_seconds": 12.605248317,
+  "prompt_tokens": 13,
+  "prompt_eval_seconds": 0.398641,
+  "output_tokens": 84,
+  "generation_seconds": 9.287374,
+  "output_tokens_per_second": 9.044537239482334
+}
+
+======================================
+Results
+======================================
+Inference CSV : results/inference.csv
+Resources CSV : results/resources-1794073793-qwen_0.5b-14048.csv
+Test ID       : 1794073793-qwen_0.5b-14048
+
+Stopping Kubernetes monitoring (PID: 14052)
+Test finished with exit code: 0
+
+
+
+
+
+======================================
+Ollama inference experiment
+======================================
+Test ID : 1794073818-deepseek-coder_1.3b-14307
+Model   : deepseek-coder:1.3b
+Prompt  : Explain Kubernetes architecture.
+
+Kubernetes monitoring started (PID: 14311)
+
+Sending request to Ollama...
+
+======================================
+Generated response
+======================================
+Kubernetes is an open-source platform designed to automate deploying, scaling, and operating application containers. It groups containers that make up an application into logical units for easy management and discovery.
+
+Here's a high-level overview of the Kubernetes architecture:
+
+1. **Master Node**: The master node is responsible for orchestration. It manages the cluster and coordinates the workloads. It also handles scheduling and maintaining the health of the nodes.
+
+2. **Worker Nodes**: These are the actual compute units in the cluster. They run the containerized applications
+
+======================================
+Inference metrics
+======================================
+{
+  "model": "deepseek-coder:1.3b",
+  "total_duration_seconds": 61.641769309,
+  "load_duration_seconds": 22.034636187,
+  "prompt_tokens": 76,
+  "prompt_eval_seconds": 7.538884,
+  "output_tokens": 128,
+  "generation_seconds": 32.057609,
+  "output_tokens_per_second": 3.9928118157533206
+}
+
+======================================
+Results
+======================================
+Inference CSV : results/inference.csv
+Resources CSV : results/resources-1794073818-deepseek-coder_1.3b-14307.csv
+Test ID       : 1794073818-deepseek-coder_1.3b-14307
+
+Stopping Kubernetes monitoring (PID: 14311)
+Test finished with exit code: 0
+
+
+
+======================================
+Ollama inference experiment
+======================================
+Test ID : 1794073882-deepseek-r1_1.5b-15015
+Model   : deepseek-r1:1.5b
+Prompt  : Explain Kubernetes architecture.
+
+Kubernetes monitoring started (PID: 15020)
+
+Sending request to Ollama...
+
+======================================
+Generated response
+======================================
+
+
+======================================
+Inference metrics
+======================================
+{
+  "model": "deepseek-r1:1.5b",
+  "total_duration_seconds": 69.227592059,
+  "load_duration_seconds": 28.561981798,
+  "prompt_tokens": 8,
+  "prompt_eval_seconds": 0.940678,
+  "output_tokens": 128,
+  "generation_seconds": 39.716616,
+  "output_tokens_per_second": 3.222832478980586
+}
+
+======================================
+Results
+======================================
+Inference CSV : results/inference.csv
+Resources CSV : results/resources-1794073882-deepseek-r1_1.5b-15015.csv
+Test ID       : 1794073882-deepseek-r1_1.5b-15015
+
+Stopping Kubernetes monitoring (PID: 15020)
+Test finished with exit code: 0

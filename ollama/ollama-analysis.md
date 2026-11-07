@@ -185,6 +185,14 @@ For a more defensible comparison:
 - [Kubernetes `kubectl top`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_top/) — resource metrics reported for Pods and containers.
 - [Kubernetes resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) — CPU and memory requests and limits.
 
+
+## 8. Additional Resources
+
+- [Ollama K8s Manifests](https://github.com/MyProgrammingProjects/k8s_notes/tree/main/ollama/k8s-manifests)
+- [Bash Script to Models Tests](https://github.com/MyProgrammingProjects/k8s_notes/tree/main/ollama/scripts)
+
+
 ---
 
 **Bottom line:** this is a useful first experiment showing the practical constraints of running local LLM inference on Raspberry Pi hardware. It is not yet a controlled benchmark. The earlier Deployment YAML was superseded by a configuration with higher CPU and memory limits. Record the exact active limits with the next run, then repeat the tests under controlled cold/warm conditions.
+
